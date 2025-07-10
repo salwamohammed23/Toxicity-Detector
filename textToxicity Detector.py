@@ -11,30 +11,30 @@ from PIL import Image
 import torch
 import os
 
-# إعداد التطبيق
+# App setup
 st.set_page_config(
-    page_title="محلل سلامة المحتوى المتقدم",
+    page_title="Advanced Content Safety Analyzer",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
-st.title("🛡️ محلل سلامة المحتوى المتقدم")
+st.title("🛡️ Advanced Content Safety Analyzer")
 
-# تحميل النماذج
-@st.cache_resource(show_spinner="جاري تحميل النماذج...")
+# Load models
+@st.cache_resource(show_spinner="Loading models...")
 def load_models():
     try:
-        # نموذج وصف الصور
-        with st.spinner("جاري تحميل نموذج وصف الصور..."):
+        # Image captioning model
+        with st.spinner("Loading image captioning model..."):
             blip_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
             blip_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
         
-        # نموذج الفحص الأولي
-        with st.spinner("جاري تحميل نموذج الفحص الأولي..."):
+        # Initial check model
+        with st.spinner("Loading initial check model..."):
             flan_pipe = pipeline("text2text-generation", model="google/flan-t5-base")
         
-        # نموذج التحليل التفصيلي
-        with st.spinner("جاري تحميل نموذج التحليل التفصيلي..."):
+        # Detailed analysis model
+        with st.spinner("Loading detailed analysis model..."):
             model_path = "Model/lora_distilbert_toxic_final"
             config = PeftConfig.from_pretrained(model_path)
             base_model = AutoModelForSequenceClassification.from_pretrained(
@@ -46,7 +46,7 @@ def load_models():
             lora_model = PeftModel.from_pretrained(base_model, model_path)
             tokenizer = AutoTokenizer.from_pretrained(model_path)
         
-        # نقل النماذج لـ GPU إذا متاح
+        # Move models to GPU if available
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         blip_model.to(device)
         lora_model.to(device)
@@ -54,29 +54,29 @@ def load_models():
         return blip_processor, blip_model, flan_pipe, lora_model, tokenizer, device
     
     except Exception as e:
-        st.error(f"حدث خطأ أثناء تحميل النماذج: {str(e)}")
+        st.error(f"An error occurred while loading the models: {str(e)}")
         return None, None, None, None, None, None
 
-# تعريف التصنيفات
+# Label definitions
 LABELS = {
-    0: {"name": "آمن", "emoji": "✅", "color": "green"},
-    1: {"name": "خطاب كراهية", "emoji": "💢", "color": "red"},
-    2: {"name": "إهانة", "emoji": "🗯️", "color": "orange"},
-    3: {"name": "تهديد", "emoji": "⚠️", "color": "red"},
-    4: {"name": "عنصري", "emoji": "🚫", "color": "red"},
-    5: {"name": "جنسي", "emoji": "🔞", "color": "red"},
-    6: {"name": "تحريض", "emoji": "🔥", "color": "orange"},
-    7: {"name": "أخرى", "emoji": "❓", "color": "gray"},
-    8: {"name": "إيذاء ذاتي", "emoji": "💔", "color": "red"}
+    0: {"name": "Safe", "emoji": "✅", "color": "green"},
+    1: {"name": "Hate Speech", "emoji": "💢", "color": "red"},
+    2: {"name": "Insult", "emoji": "🗯️", "color": "orange"},
+    3: {"name": "Threat", "emoji": "⚠️", "color": "red"},
+    4: {"name": "Racist", "emoji": "🚫", "color": "red"},
+    5: {"name": "Sexual", "emoji": "🔞", "color": "red"},
+    6: {"name": "Incitement", "emoji": "🔥", "color": "orange"},
+    7: {"name": "Other", "emoji": "❓", "color": "gray"},
+    8: {"name": "Self-harm", "emoji": "💔", "color": "red"}
 }
 
-# دالة الفحص الأولي
+# Initial safety check function
 def initial_safety_check(text, flan_pipe):
-    prompt = f"هل هذا المحتوى آمن أم غير آمن؟ \"{text}\" أجب بكلمة واحدة فقط: آمن أو غير آمن."
+    prompt = f"Is this content safe or unsafe? \"{text}\" Answer with one word only: Safe or Unsafe."
     result = flan_pipe(prompt, max_new_tokens=10)
     return result[0]['generated_text'].strip()
 
-# دالة التحليل التفصيلي
+# Detailed analysis function
 def detailed_analysis(text, lora_model, tokenizer, device):
     inputs = tokenizer(
         text,
@@ -95,51 +95,51 @@ def detailed_analysis(text, lora_model, tokenizer, device):
 def main():
     blip_processor, blip_model, flan_pipe, lora_model, tokenizer, device = load_models()
     
-    # زر إعادة تحميل الصفحة
-    if st.button("🔄 تحديث الصفحة"):
+    # Refresh button
+    if st.button("🔄 Refresh Page"):
         st.experimental_rerun()
     
     input_type = st.radio(
-        "اختر نوع المحتوى:",
-        ["نص", "صورة"],
+        "Select content type:",
+        ["Text", "Image"],
         horizontal=True,
         key="input_type"
     )
     
-    if input_type == "صورة":
+    if input_type == "Image":
         uploaded_file = st.file_uploader(
-            "رفع صورة للتحليل:",
+            "Upload an image for analysis:",
             type=["jpg", "jpeg", "png"],
             key="image_uploader"
         )
         
         if uploaded_file is not None:
-            st.image(uploaded_file, caption="الصورة المرفوعة", use_container_width=True)
+            st.image(uploaded_file, caption="Uploaded Image", use_container_width=True)
             
-            if st.button("تحليل الصورة", key="analyze_image"):
-                with st.spinner("جاري تحليل الصورة..."):
+            if st.button("Analyze Image", key="analyze_image"):
+                with st.spinner("Analyzing image..."):
                     try:
-                        # توليد الوصف
+                        # Generate caption
                         raw_image = Image.open(uploaded_file).convert("RGB")
                         inputs = blip_processor(raw_image, return_tensors="pt").to(device)
                         out = blip_model.generate(**inputs)
                         caption = blip_processor.decode(out[0], skip_special_tokens=True)
                         
-                        st.success(f"**التسمية التوضيحية:** {caption}")
+                        st.success(f"**Caption:** {caption}")
                         
-                        # الفحص الأولي
-                        st.subheader("🔍 الفحص الأولي")
+                        # Initial check
+                        st.subheader("🔍 Initial Safety Check")
                         initial_check = initial_safety_check(caption, flan_pipe)
                         
-                        if "غير آمن" in initial_check.lower():
-                            st.error("## ❌ نتيجة الفحص الأولي: محتوى غير آمن")
-                            st.error("تم اكتشاف محتوى غير آمن في الفحص الأولي، سيتم إيقاف التحليل.")
+                        if "unsafe" in initial_check.lower():
+                            st.error("## ❌ Initial Check Result: Unsafe Content")
+                            st.error("Unsafe content detected in the initial check. Analysis stopped.")
                             st.stop()
                         else:
-                            st.success("## ✅ نتيجة الفحص الأولي: محتوى آمن")
+                            st.success("## ✅ Initial Check Result: Safe Content")
                             
-                            # التحليل التفصيلي
-                            st.subheader("🔎 التحليل التفصيلي")
+                            # Detailed analysis
+                            st.subheader("🔎 Detailed Analysis")
                             probs = detailed_analysis(caption, lora_model, tokenizer, device)
                             pred_idx = probs.index(max(probs))
                             confidence = probs[pred_idx]
@@ -147,12 +147,12 @@ def main():
                             
                             st.markdown(f"""
                             <div style='background-color:#f0f0f0; padding:15px; border-radius:10px; border-left:5px solid {label["color"]}'>
-                                <h3 style='color:{label["color"]}'>{label["emoji"]} التصنيف: <strong>{label["name"]}</strong></h3>
-                                <p>مستوى الثقة: {confidence:.2%}</p>
+                                <h3 style='color:{label["color"]}'>{label["emoji"]} Category: <strong>{label["name"]}</strong></h3>
+                                <p>Confidence Level: {confidence:.2%}</p>
                             </div>
                             """, unsafe_allow_html=True)
                             
-                            st.write("### توزيع الاحتمالات:")
+                            st.write("### Probability Distribution:")
                             for i, prob in enumerate(probs):
                                 label_info = LABELS[i]
                                 cols = st.columns([1, 3, 1])
@@ -161,35 +161,35 @@ def main():
                                 cols[2].write(f"{prob:.2%}")
                             
                     except Exception as e:
-                        st.error(f"حدث خطأ أثناء تحليل الصورة: {str(e)}")
+                        st.error(f"An error occurred while analyzing the image: {str(e)}")
     
-    elif input_type == "نص":
+    elif input_type == "Text":
         text_content = st.text_area(
-            "أدخل النص للتحليل:",
+            "Enter text for analysis:",
             height=200,
-            placeholder="الصق النص هنا...",
+            placeholder="Paste your text here...",
             key="text_input"
         )
         
-        if st.button("تحليل النص", key="analyze_text"):
+        if st.button("Analyze Text", key="analyze_text"):
             if not text_content.strip():
-                st.warning("الرجاء إدخال نص للتحليل")
+                st.warning("Please enter some text to analyze.")
             else:
-                with st.spinner("جاري تحليل النص..."):
+                with st.spinner("Analyzing text..."):
                     try:
-                        # الفحص الأولي
-                        st.subheader("🔍 الفحص الأولي")
+                        # Initial check
+                        st.subheader("🔍 Initial Safety Check")
                         initial_check = initial_safety_check(text_content, flan_pipe)
                         
-                        if "غير آمن" in initial_check.lower():
-                            st.error("## ❌ نتيجة الفحص الأولي: محتوى غير آمن")
-                            st.error("تم اكتشاف محتوى غير آمن في الفحص الأولي، سيتم إيقاف التحليل.")
+                        if "unsafe" in initial_check.lower():
+                            st.error("## ❌ Initial Check Result: Unsafe Content")
+                            st.error("Unsafe content detected in the initial check. Analysis stopped.")
                             st.stop()
                         else:
-                            st.success("## ✅ نتيجة الفحص الأولي: محتوى آمن")
+                            st.success("## ✅ Initial Check Result: Safe Content")
                             
-                            # التحليل التفصيلي
-                            st.subheader("🔎 التحليل التفصيلي")
+                            # Detailed analysis
+                            st.subheader("🔎 Detailed Analysis")
                             probs = detailed_analysis(text_content, lora_model, tokenizer, device)
                             pred_idx = probs.index(max(probs))
                             confidence = probs[pred_idx]
@@ -197,12 +197,12 @@ def main():
                             
                             st.markdown(f"""
                             <div style='background-color:#f0f0f0; padding:15px; border-radius:10px; border-left:5px solid {label["color"]}'>
-                                <h3 style='color:{label["color"]}'>{label["emoji"]} التصنيف: <strong>{label["name"]}</strong></h3>
-                                <p>مستوى الثقة: {confidence:.2%}</p>
+                                <h3 style='color:{label["color"]}'>{label["emoji"]} Category: <strong>{label["name"]}</strong></h3>
+                                <p>Confidence Level: {confidence:.2%}</p>
                             </div>
                             """, unsafe_allow_html=True)
                             
-                            st.write("### توزيع الاحتمالات:")
+                            st.write("### Probability Distribution:")
                             for i, prob in enumerate(probs):
                                 label_info = LABELS[i]
                                 cols = st.columns([1, 3, 1])
@@ -211,7 +211,7 @@ def main():
                                 cols[2].write(f"{prob:.2%}")
                     
                     except Exception as e:
-                        st.error(f"حدث خطأ أثناء تحليل النص: {str(e)}")
+                        st.error(f"An error occurred while analyzing the text: {str(e)}")
 
 if __name__ == "__main__":
     main()
