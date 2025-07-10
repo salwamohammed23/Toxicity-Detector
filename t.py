@@ -4,30 +4,30 @@ import os
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from peft import PeftModel, PeftConfig
 
-# 1. تهيئة التطبيق
+# 1. Application Setup
 st.set_page_config(
-    page_title="نموذج كشف المحتوى الضار",
+    page_title="Harmful Content Detection Model",
     page_icon="⚠️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
-st.title("⚠️ كاشف المحتوى الضار باستخدام تقنية LoRA")
+st.title("⚠️ Harmful Content Detector using LoRA Technology")
 
-# 2. تحميل النموذج - نسخة محسنة
-@st.cache_resource(show_spinner="جاري تحميل النموذج...")
+# 2. Enhanced Model Loading
+@st.cache_resource(show_spinner="Loading model...")
 def load_model():
     try:
         model_path = "Model/lora_distilbert_toxic_final"
         
-        # قائمة بالملفات المطلوبة مع رسائل خطأ مخصصة
+        # Required files with custom error messages
         required_files = {
-            'adapter_config.json': "ملف تكوين LoRA الأساسي",
-            'adapter_model.safetensors': "أوزان النموذج المحسنة",
-            'tokenizer_config.json': "إعدادات Tokenizer",
-            'vocab.txt': "قاموس المفردات"
+            'adapter_config.json': "LoRA configuration file",
+            'adapter_model.safetensors': "Fine-tuned model weights",
+            'tokenizer_config.json': "Tokenizer settings",
+            'vocab.txt': "Vocabulary dictionary"
         }
         
-        # التحقق من وجود جميع الملفات
+        # Verify all files exist
         missing_files = []
         for file, desc in required_files.items():
             if not os.path.exists(os.path.join(model_path, file)):
@@ -35,80 +35,80 @@ def load_model():
         
         if missing_files:
             raise FileNotFoundError(
-                "الملفات التالية مفقودة:\n" + "\n".join(missing_files)
+                "The following files are missing:\n" + "\n".join(missing_files)
             )
         
-        # تحميل مكونات النموذج مع شريط تقدم
-        with st.spinner("جاري تحميل إعدادات النموذج..."):
+        # Load model components with progress indicators
+        with st.spinner("Loading model configuration..."):
             config = PeftConfig.from_pretrained(model_path)
         
-        with st.spinner("جاري تحميل النموذج الأساسي..."):
+        with st.spinner("Loading base model..."):
             base_model = AutoModelForSequenceClassification.from_pretrained(
                 config.base_model_name_or_path,
-                num_labels=9,  # تم التغيير من 8 إلى 9 ليتطابق مع النموذج المدرب
+                num_labels=9,  # Changed from 8 to 9 to match trained model
                 return_dict=True,
                 ignore_mismatched_sizes=True,
                 device_map="auto"
             )
         
-        with st.spinner("جاري تطبيق ضبط LoRA..."):
+        with st.spinner("Applying LoRA adapters..."):
             model = PeftModel.from_pretrained(base_model, model_path)
         
-        with st.spinner("جاري تحميل Tokenizer..."):
+        with st.spinner("Loading tokenizer..."):
             tokenizer = AutoTokenizer.from_pretrained(model_path)
         
         return model, tokenizer
         
     except Exception as e:
-        st.error("## حدث خطأ في تحميل النموذج")
+        st.error("## Error loading model")
         st.error(str(e))
         st.error("""
-**الإجراءات الممكنة:**
-1. تأكد من وجود مجلد النموذج في المسار الصحيح
-2. تحقق من وجود جميع الملفات المطلوبة
-3. تأكد من تثبيت الإصدارات الصحيحة للمكتبات
-4. راجع سجل الأخطاء لمزيد من التفاصيل""")
+**Possible actions:**
+1. Verify model folder exists in correct path
+2. Check all required files are present
+3. Confirm correct library versions are installed
+4. Review error log for details""")
         return None, None
 
 model, tokenizer = load_model()
 
-# 3. واجهة المستخدم المحسنة
+# 3. Enhanced User Interface
 if model and tokenizer:
-    st.sidebar.success("تم تحميل النموذج بنجاح!")
+    st.sidebar.success("Model loaded successfully!")
     
-    # تعريف الفئات مع ألوان توضيحية (تم تحديثها لتشمل 9 فئات)
+    # Label definitions with visual indicators
     LABELS = {
-        "غير سام": {"emoji": "✅", "color": "green"},
-        "كراهية": {"emoji": "💢", "color": "red"},
-        "إهانة": {"emoji": "🗯️", "color": "orange"},
-        "تهديد": {"emoji": "⚠️", "color": "red"},
-        "عنصري": {"emoji": "🚫", "color": "red"},
-        "جنسي": {"emoji": "🔞", "color": "red"},
-        "تحريض": {"emoji": "🔥", "color": "orange"},
-        "أخرى": {"emoji": "❓", "color": "gray"},
-        "إيذاء النفس": {"emoji": "💔", "color": "red"}  # الفئة التاسعة المضافة
+        "Safe": {"emoji": "✅", "color": "green"},
+        "Hate Speech": {"emoji": "💢", "color": "red"},
+        "Insult": {"emoji": "🗯️", "color": "orange"},
+        "Threat": {"emoji": "⚠️", "color": "red"},
+        "Racist": {"emoji": "🚫", "color": "red"},
+        "Sexual": {"emoji": "🔞", "color": "red"},
+        "Incitement": {"emoji": "🔥", "color": "orange"},
+        "Other": {"emoji": "❓", "color": "gray"},
+        "Self-Harm": {"emoji": "💔", "color": "red"}  # Added 9th category
     }
     
     with st.form("classification_form"):
         col1, col2 = st.columns([3, 1])
         with col1:
             text = st.text_area(
-                "**أدخل النص المراد تحليله:**",
+                "**Enter text to analyze:**",
                 height=200,
-                placeholder="الصق النص هنا...",
-                help="يمكنك إدخال أي نص لتحليل محتواه"
+                placeholder="Paste text here...",
+                help="Enter any text to analyze its content"
             )
         with col2:
-            st.markdown("### إعدادات")
-            max_length = st.slider("الحد الأقصى للطول", 128, 512, 256)
-            threshold = st.slider("حد الثقة", 0.0, 1.0, 0.7, 0.05)
+            st.markdown("### Settings")
+            max_length = st.slider("Max length", 128, 512, 256)
+            threshold = st.slider("Confidence threshold", 0.0, 1.0, 0.7, 0.05)
         
-        submitted = st.form_submit_button("**بدء التحليل**", use_container_width=True)
+        submitted = st.form_submit_button("**Analyze Text**", use_container_width=True)
         
         if submitted and text:
-            with st.spinner("جاري تحليل النص..."):
+            with st.spinner("Analyzing text..."):
                 try:
-                    # Tokenization مع معالجة الأخطاء
+                    # Tokenization with error handling
                     inputs = tokenizer(
                         text,
                         return_tensors="pt",
@@ -117,35 +117,35 @@ if model and tokenizer:
                         max_length=max_length
                     ).to(model.device)
                     
-                    # التنبؤ
+                    # Prediction
                     with torch.no_grad():
                         outputs = model(**inputs)
                         probs = torch.nn.functional.softmax(outputs.logits, dim=-1)
                         pred_idx = torch.argmax(probs).item()
                         confidence = probs[0][pred_idx].item()
                     
-                    # عرض النتائج
-                    st.subheader("📊 نتائج التحليل")
+                    # Display results
+                    st.subheader("📊 Analysis Results")
                     
                     pred_label = list(LABELS.keys())[pred_idx]
                     label_info = LABELS[pred_label]
                     
-                    # بطاقة النتيجة الرئيسية
+                    # Main result card
                     if confidence > threshold:
                         st.success(f"""
-                        ## {label_info['emoji']} التصنيف: **{pred_label}**  
-                        **مستوى الثقة**: {confidence:.2%}  
-                        **التقييم**: { "خطير" if pred_idx > 0 else "آمن"}
+                        ## {label_info['emoji']} Classification: **{pred_label}**  
+                        **Confidence Level**: {confidence:.2%}  
+                        **Assessment**: {"Dangerous" if pred_idx > 0 else "Safe"}
                         """)
                     else:
                         st.warning(f"""
-                        ## ⚠️ تصنيف غير حاسم  
-                        **التصنيف الأكثر احتمالاً**: {pred_label}  
-                        **الثقة**: {confidence:.2%} (أقل من الحد المطلوب {threshold:.0%})
+                        ## ⚠️ Inconclusive Classification  
+                        **Most Likely Category**: {pred_label}  
+                        **Confidence**: {confidence:.2%} (below {threshold:.0%} threshold)
                         """)
                     
-                    # مخطط الاحتمالات
-                    st.markdown("### توزيع الاحتمالات حسب الفئات")
+                    # Probability distribution
+                    st.markdown("### Probability Distribution by Category")
                     for i, (label, prob) in enumerate(zip(LABELS.keys(), probs[0])):
                         prob_value = prob.item()
                         label_info = LABELS[label]
@@ -158,40 +158,40 @@ if model and tokenizer:
                         )
                         cols[2].markdown(f"`{prob_value:.2%}`")
                     
-                    # تحذير إذا كانت أعلى نتيجة أقل من العتبة
+                    # Warning for low confidence results
                     if confidence < threshold:
                         st.warning("""
-                        **ملاحظة**: النتيجة الأقل من الحد المطلوب قد تشير إلى:
-                        - نص غامض
-                        - لغة غير واضحة
-                        - سياق غير محدد
+                        **Note**: Results below threshold may indicate:
+                        - Ambiguous text
+                        - Unclear language
+                        - Indeterminate context
                         """)
                         
                 except Exception as e:
-                    st.error(f"حدث خطأ أثناء التحليل: {str(e)}")
-                    st.error("قد يكون النص طويلاً جداً أو غير صالح")
+                    st.error(f"Error during analysis: {str(e)}")
+                    st.error("Text may be too long or invalid")
 
-# 4. المعلومات الجانبية المحسنة
-st.sidebar.markdown("## 🛠️ معلومات تقنية")
+# 4. Enhanced Sidebar Information
+st.sidebar.markdown("## 🛠️ Technical Information")
 st.sidebar.info("""
-**تفاصيل النموذج:**
-- **النموذج الأساسي**: DistilBERT-base-uncased
-- **التقنية**: LoRA (Low-Rank Adaptation)
-- **عدد الفئات**: 9
-- **حجم النموذج**: ~70MB (مع LoRA)
+**Model Details:**
+- **Base Model**: DistilBERT-base-uncased
+- **Technique**: LoRA (Low-Rank Adaptation)
+- **Number of Categories**: 9
+- **Model Size**: ~70MB (with LoRA)
 
-**إمكانيات النموذج:**
-- كشف المحتوى الضار
-- تصنيف أنواع السمية
-- تحليل لغة الكراهية
+**Capabilities:**
+- Harmful content detection
+- Toxicity classification
+- Hate speech analysis
 """)
 
-st.sidebar.markdown("## 📊 إحصائيات")
+st.sidebar.markdown("## 📊 Statistics")
 if model:
-    st.sidebar.metric("عدد الفئات", len(LABELS))
-    st.sidebar.metric("حجم Tokenizer", f"{len(tokenizer):,} مفردة")
+    st.sidebar.metric("Number of Categories", len(LABELS))
+    st.sidebar.metric("Tokenizer Vocabulary", f"{len(tokenizer):,} tokens")
 
-# 5. تذييل الصفحة
+# 5. Page Footer
 st.markdown("---")
 footer = """
 <style>
@@ -208,7 +208,7 @@ footer = """
 }
 </style>
 <div class="footer">
-    <p>تم تطويره باستخدام 🤗 Transformers و PEFT | إصدار v1.1.0</p>
+    <p>Developed using 🤗 Transformers and PEFT | Version v1.1.0</p>
 </div>
 """
 st.markdown(footer, unsafe_allow_html=True)
