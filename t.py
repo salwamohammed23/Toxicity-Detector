@@ -26,7 +26,7 @@ def load_model():
         )
         
         # تحميل نموذج LoRA
-        model = PeftModel.from_pretrained(base_model, "./optimized_lora_model")
+        model = PeftModel.from_pretrained(base_model, "Model/lora_distilbert_toxic_final")
         tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path)
         
         return model, tokenizer
