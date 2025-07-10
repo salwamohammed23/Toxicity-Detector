@@ -70,8 +70,14 @@ LABELS = {
     8: {"name": "إيذاء ذاتي", "emoji": "💔", "color": "red"}
 }
 
-# دالة لتحليل النص
-def analyze_text(text, lora_model, tokenizer, device):
+# دالة الفحص الأولي
+def initial_safety_check(text, flan_pipe):
+    prompt = f"هل هذا المحتوى آمن أم غير آمن؟ \"{text}\" أجب بكلمة واحدة فقط: آمن أو غير آمن."
+    result = flan_pipe(prompt, max_new_tokens=10)
+    return result[0]['generated_text'].strip()
+
+# دالة التحليل التفصيلي
+def detailed_analysis(text, lora_model, tokenizer, device):
     inputs = tokenizer(
         text,
         return_tensors="pt",
@@ -108,12 +114,12 @@ def main():
         )
         
         if uploaded_file is not None:
-            # التحديث هنا: استبدال use_column_width بـ use_container_width
             st.image(uploaded_file, caption="الصورة المرفوعة", use_container_width=True)
             
             if st.button("تحليل الصورة", key="analyze_image"):
                 with st.spinner("جاري تحليل الصورة..."):
                     try:
+                        # توليد الوصف
                         raw_image = Image.open(uploaded_file).convert("RGB")
                         inputs = blip_processor(raw_image, return_tensors="pt").to(device)
                         out = blip_model.generate(**inputs)
@@ -121,26 +127,38 @@ def main():
                         
                         st.success(f"**التسمية التوضيحية:** {caption}")
                         
-                        probs = analyze_text(caption, lora_model, tokenizer, device)
-                        pred_idx = probs.index(max(probs))
-                        confidence = probs[pred_idx]
-                        label = LABELS[pred_idx]
+                        # الفحص الأولي
+                        st.subheader("🔍 الفحص الأولي")
+                        initial_check = initial_safety_check(caption, flan_pipe)
                         
-                        st.subheader("📊 نتائج التحليل")
-                        st.markdown(f"""
-                        <div style='background-color:#f0f0f0; padding:15px; border-radius:10px; border-left:5px solid {label["color"]}'>
-                            <h3 style='color:{label["color"]}'>{label["emoji"]} التصنيف: <strong>{label["name"]}</strong></h3>
-                            <p>مستوى الثقة: {confidence:.2%}</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        st.write("### توزيع الاحتمالات:")
-                        for i, prob in enumerate(probs):
-                            label_info = LABELS[i]
-                            cols = st.columns([1, 3, 1])
-                            cols[0].markdown(f"**{label_info['emoji']} {label_info['name']}**")
-                            cols[1].progress(prob, text=f"{prob:.2%}")
-                            cols[2].write(f"{prob:.2%}")
+                        if "غير آمن" in initial_check.lower():
+                            st.error("## ❌ نتيجة الفحص الأولي: محتوى غير آمن")
+                            st.error("تم اكتشاف محتوى غير آمن في الفحص الأولي، سيتم إيقاف التحليل.")
+                            st.stop()
+                        else:
+                            st.success("## ✅ نتيجة الفحص الأولي: محتوى آمن")
+                            
+                            # التحليل التفصيلي
+                            st.subheader("🔎 التحليل التفصيلي")
+                            probs = detailed_analysis(caption, lora_model, tokenizer, device)
+                            pred_idx = probs.index(max(probs))
+                            confidence = probs[pred_idx]
+                            label = LABELS[pred_idx]
+                            
+                            st.markdown(f"""
+                            <div style='background-color:#f0f0f0; padding:15px; border-radius:10px; border-left:5px solid {label["color"]}'>
+                                <h3 style='color:{label["color"]}'>{label["emoji"]} التصنيف: <strong>{label["name"]}</strong></h3>
+                                <p>مستوى الثقة: {confidence:.2%}</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            st.write("### توزيع الاحتمالات:")
+                            for i, prob in enumerate(probs):
+                                label_info = LABELS[i]
+                                cols = st.columns([1, 3, 1])
+                                cols[0].markdown(f"**{label_info['emoji']} {label_info['name']}**")
+                                cols[1].progress(prob, text=f"{prob:.2%}")
+                                cols[2].write(f"{prob:.2%}")
                             
                     except Exception as e:
                         st.error(f"حدث خطأ أثناء تحليل الصورة: {str(e)}")
@@ -160,21 +178,23 @@ def main():
                 with st.spinner("جاري تحليل النص..."):
                     try:
                         # الفحص الأولي
+                        st.subheader("🔍 الفحص الأولي")
                         initial_check = initial_safety_check(text_content, flan_pipe)
                         
                         if "غير آمن" in initial_check.lower():
-                            st.error("## ❌ الفحص الأولي: محتوى غير آمن")
-                            st.error("تم اكتشاف محتوى غير آمن في الفحص الأولي.")
+                            st.error("## ❌ نتيجة الفحص الأولي: محتوى غير آمن")
+                            st.error("تم اكتشاف محتوى غير آمن في الفحص الأولي، سيتم إيقاف التحليل.")
+                            st.stop()
                         else:
-                            st.success("## ✅ الفحص الأولي: محتوى آمن")
-                            st.info("جاري التحليل التفصيلي...")
+                            st.success("## ✅ نتيجة الفحص الأولي: محتوى آمن")
                             
-                            probs = analyze_text(text_content, lora_model, tokenizer, device)
+                            # التحليل التفصيلي
+                            st.subheader("🔎 التحليل التفصيلي")
+                            probs = detailed_analysis(text_content, lora_model, tokenizer, device)
                             pred_idx = probs.index(max(probs))
                             confidence = probs[pred_idx]
                             label = LABELS[pred_idx]
                             
-                            st.subheader("📊 نتائج التحليل التفصيلي")
                             st.markdown(f"""
                             <div style='background-color:#f0f0f0; padding:15px; border-radius:10px; border-left:5px solid {label["color"]}'>
                                 <h3 style='color:{label["color"]}'>{label["emoji"]} التصنيف: <strong>{label["name"]}</strong></h3>
@@ -192,11 +212,6 @@ def main():
                     
                     except Exception as e:
                         st.error(f"حدث خطأ أثناء تحليل النص: {str(e)}")
-
-def initial_safety_check(text, flan_pipe):
-    prompt = f"هل هذا المحتوى آمن أم غير آمن؟ \"{text}\" أجب بكلمة واحدة فقط: آمن أو غير آمن."
-    result = flan_pipe(prompt, max_new_tokens=10)
-    return result[0]['generated_text'].strip()
 
 if __name__ == "__main__":
     main()
