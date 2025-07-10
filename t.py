@@ -36,7 +36,7 @@ def load_model():
         if missing_files:
             raise FileNotFoundError(
                 "الملفات التالية مفقودة:\n" + "\n".join(missing_files)
-        
+            )
         # تحميل مكونات النموذج مع شريط تقدم
         with st.spinner("جاري تحميل إعدادات النموذج..."):
             config = PeftConfig.from_pretrained(model_path)
