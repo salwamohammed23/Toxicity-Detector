@@ -1,9 +1,8 @@
-pip-> 25.1.1
+pip>=25.1.1
 streamlit>=1.46.1
-tensorflow>=2.15.0,<2.16.0
+tensorflow>=2.15.0  # Remove upper bound if needed
 transformers>=4.40.0
 torch>=2.0.0
 pillow>=10.3.0
 numpy>=1.26.0
-
 
