@@ -24,8 +24,8 @@ def load_all_models():
     blip_model.to(device)
 
     # Local Model
-    keras_model = tf.keras.models.load_model("/content/drive/MyDrive/Text Toxicity Detector models/text_classifier_cnn.h5")
-    with open("/content/drive/MyDrive/Text Toxicity Detector models/tokenizer.pickle", "rb") as f:
+    keras_model = tf.keras.models.load_model("Model/text_classifier_cnn.h55")
+    with open("Model/tokenizer.pickle", "rb") as f:
         tokenizer = pickle.load(f)
 
     return flan_pipe, processor, blip_model, device, keras_model, tokenizer
