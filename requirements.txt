@@ -1,5 +1,6 @@
+pip install --upgrade pip
 python>=3.13.5
-pip>=25.1.1
+
 streamlit>=1.46.1
 tensorflow-cpu>=2.15.0  # Remove upper bound if needed
 transformers>=4.40.0
