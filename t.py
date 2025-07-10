@@ -19,7 +19,7 @@ def load_model():
         model_path = "Model/lora_distilbert_toxic_final"
         
         # التحقق من وجود الملفات المطلوبة
-        required_files = ['adapter_config.json', 'adapter_model.bin']
+        required_files = ['adapter_config.json', 'adapter_model.safetensors']
         for file in required_files:
             if not os.path.exists(os.path.join(model_path, file)):
                 raise FileNotFoundError(f"ملف {file} غير موجود في المسار المحدد")
