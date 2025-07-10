@@ -108,7 +108,8 @@ def main():
         )
         
         if uploaded_file is not None:
-            st.image(uploaded_file, caption="الصورة المرفوعة", use_column_width=True)
+            # التحديث هنا: استبدال use_column_width بـ use_container_width
+            st.image(uploaded_file, caption="الصورة المرفوعة", use_container_width=True)
             
             if st.button("تحليل الصورة", key="analyze_image"):
                 with st.spinner("جاري تحليل الصورة..."):
