@@ -1,7 +1,10 @@
-streamlit
-Pillow
-numpy
-transformers
-torch==2.0.1
-tensorflow-cpu==2.13.0
+
 scikit-learn
+
+
+streamlit>=1.33.0
+torch>=2.0.0
+transformers>=4.40.0
+tensorflow>=2.15.0
+pillow>=10.3.0
+numpy>=1.26.0
