@@ -70,7 +70,22 @@ LABELS = {
     8: {"name": "إيذاء ذاتي", "emoji": "💔", "color": "red"}
 }
 
-# واجهة المستخدم
+# دالة لتحليل النص
+def analyze_text(text, lora_model, tokenizer, device):
+    inputs = tokenizer(
+        text,
+        return_tensors="pt",
+        truncation=True,
+        padding=True,
+        max_length=256
+    ).to(device)
+    
+    with torch.no_grad():
+        outputs = lora_model(**inputs)
+        probs = torch.nn.functional.softmax(outputs.logits, dim=-1)
+    
+    return probs[0].tolist()
+
 def main():
     blip_processor, blip_model, flan_pipe, lora_model, tokenizer, device = load_models()
     
@@ -93,13 +108,11 @@ def main():
         )
         
         if uploaded_file is not None:
-            # عرض الصورة مباشرة
             st.image(uploaded_file, caption="الصورة المرفوعة", use_column_width=True)
             
             if st.button("تحليل الصورة", key="analyze_image"):
                 with st.spinner("جاري تحليل الصورة..."):
                     try:
-                        # توليد الوصف
                         raw_image = Image.open(uploaded_file).convert("RGB")
                         inputs = blip_processor(raw_image, return_tensors="pt").to(device)
                         out = blip_model.generate(**inputs)
@@ -107,21 +120,9 @@ def main():
                         
                         st.success(f"**التسمية التوضيحية:** {caption}")
                         
-                        # التحليل التفصيلي
-                        inputs = tokenizer(
-                            caption,
-                            return_tensors="pt",
-                            truncation=True,
-                            padding=True,
-                            max_length=256
-                        ).to(device)
-                        
-                        with torch.no_grad():
-                            outputs = lora_model(**inputs)
-                            probs = torch.nn.functional.softmax(outputs.logits, dim=-1)
-                        
-                        pred_idx = torch.argmax(probs).item()
-                        confidence = probs[0][pred_idx].item()
+                        probs = analyze_text(caption, lora_model, tokenizer, device)
+                        pred_idx = probs.index(max(probs))
+                        confidence = probs[pred_idx]
                         label = LABELS[pred_idx]
                         
                         st.subheader("📊 نتائج التحليل")
@@ -132,17 +133,16 @@ def main():
                         </div>
                         """, unsafe_allow_html=True)
                         
-                        # عرض توزيع الاحتمالات
                         st.write("### توزيع الاحتمالات:")
-                        for i, prob in enumerate(probs[0]):
+                        for i, prob in enumerate(probs):
                             label_info = LABELS[i]
                             cols = st.columns([1, 3, 1])
                             cols[0].markdown(f"**{label_info['emoji']} {label_info['name']}**")
-                            cols[1].progress(prob.item(), text=f"{prob.item():.2%}")
-                            cols[2].write(f"{prob.item():.2%}")
+                            cols[1].progress(prob, text=f"{prob:.2%}")
+                            cols[2].write(f"{prob:.2%}")
                             
                     except Exception as e:
-                        st.error(f"حدث خطأ أثناء التحليل: {str(e)}")
+                        st.error(f"حدث خطأ أثناء تحليل الصورة: {str(e)}")
     
     elif input_type == "نص":
         text_content = st.text_area(
@@ -152,13 +152,50 @@ def main():
             key="text_input"
         )
         
-        if st.button("تحليل النص", key="analyze_text") and text_content.strip():
-            with st.spinner("جاري تحليل النص..."):
-                try:
-                    # نفس كود التحليل السابق للنص
-                    pass
-                except Exception as e:
-                    st.error(f"حدث خطأ أثناء التحليل: {str(e)}")
+        if st.button("تحليل النص", key="analyze_text"):
+            if not text_content.strip():
+                st.warning("الرجاء إدخال نص للتحليل")
+            else:
+                with st.spinner("جاري تحليل النص..."):
+                    try:
+                        # الفحص الأولي
+                        initial_check = initial_safety_check(text_content, flan_pipe)
+                        
+                        if "غير آمن" in initial_check.lower():
+                            st.error("## ❌ الفحص الأولي: محتوى غير آمن")
+                            st.error("تم اكتشاف محتوى غير آمن في الفحص الأولي.")
+                        else:
+                            st.success("## ✅ الفحص الأولي: محتوى آمن")
+                            st.info("جاري التحليل التفصيلي...")
+                            
+                            probs = analyze_text(text_content, lora_model, tokenizer, device)
+                            pred_idx = probs.index(max(probs))
+                            confidence = probs[pred_idx]
+                            label = LABELS[pred_idx]
+                            
+                            st.subheader("📊 نتائج التحليل التفصيلي")
+                            st.markdown(f"""
+                            <div style='background-color:#f0f0f0; padding:15px; border-radius:10px; border-left:5px solid {label["color"]}'>
+                                <h3 style='color:{label["color"]}'>{label["emoji"]} التصنيف: <strong>{label["name"]}</strong></h3>
+                                <p>مستوى الثقة: {confidence:.2%}</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            st.write("### توزيع الاحتمالات:")
+                            for i, prob in enumerate(probs):
+                                label_info = LABELS[i]
+                                cols = st.columns([1, 3, 1])
+                                cols[0].markdown(f"**{label_info['emoji']} {label_info['name']}**")
+                                cols[1].progress(prob, text=f"{prob:.2%}")
+                                cols[2].write(f"{prob:.2%}")
+                    
+                    except Exception as e:
+                        st.error(f"حدث خطأ أثناء تحليل النص: {str(e)}")
+
+def initial_safety_check(text, flan_pipe):
+    prompt = f"هل هذا المحتوى آمن أم غير آمن؟ \"{text}\" أجب بكلمة واحدة فقط: آمن أو غير آمن."
+    result = flan_pipe(prompt, max_new_tokens=10)
+    return result[0]['generated_text'].strip()
 
 if __name__ == "__main__":
     main()
