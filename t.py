@@ -16,7 +16,7 @@ st.title("🎯 نموذج التصنيف باستخدام LoRA")
 def load_model():
     try:
         # تحميل إعدادات LoRA
-        config = PeftConfig.from_pretrained("./optimized_lora_model")
+        config = PeftConfig.from_pretrained("Model/lora_distilbert_toxic_final")
         
         # تحميل النموذج الأساسي
         base_model = AutoModelForSequenceClassification.from_pretrained(
