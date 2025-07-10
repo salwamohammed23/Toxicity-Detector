@@ -37,6 +37,7 @@ def load_model():
             raise FileNotFoundError(
                 "الملفات التالية مفقودة:\n" + "\n".join(missing_files)
             )
+        
         # تحميل مكونات النموذج مع شريط تقدم
         with st.spinner("جاري تحميل إعدادات النموذج..."):
             config = PeftConfig.from_pretrained(model_path)
@@ -44,7 +45,7 @@ def load_model():
         with st.spinner("جاري تحميل النموذج الأساسي..."):
             base_model = AutoModelForSequenceClassification.from_pretrained(
                 config.base_model_name_or_path,
-                num_labels=8,
+                num_labels=9,  # تم التغيير من 8 إلى 9 ليتطابق مع النموذج المدرب
                 return_dict=True,
                 ignore_mismatched_sizes=True,
                 device_map="auto"
@@ -75,7 +76,7 @@ model, tokenizer = load_model()
 if model and tokenizer:
     st.sidebar.success("تم تحميل النموذج بنجاح!")
     
-    # تعريف الفئات مع ألوان توضيحية
+    # تعريف الفئات مع ألوان توضيحية (تم تحديثها لتشمل 9 فئات)
     LABELS = {
         "غير سام": {"emoji": "✅", "color": "green"},
         "كراهية": {"emoji": "💢", "color": "red"},
@@ -84,7 +85,8 @@ if model and tokenizer:
         "عنصري": {"emoji": "🚫", "color": "red"},
         "جنسي": {"emoji": "🔞", "color": "red"},
         "تحريض": {"emoji": "🔥", "color": "orange"},
-        "أخرى": {"emoji": "❓", "color": "gray"}
+        "أخرى": {"emoji": "❓", "color": "gray"},
+        "إيذاء النفس": {"emoji": "💔", "color": "red"}  # الفئة التاسعة المضافة
     }
     
     with st.form("classification_form"):
@@ -175,7 +177,7 @@ st.sidebar.info("""
 **تفاصيل النموذج:**
 - **النموذج الأساسي**: DistilBERT-base-uncased
 - **التقنية**: LoRA (Low-Rank Adaptation)
-- **عدد الفئات**: 8
+- **عدد الفئات**: 9
 - **حجم النموذج**: ~70MB (مع LoRA)
 
 **إمكانيات النموذج:**
